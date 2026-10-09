@@ -1,44 +1,30 @@
-# 🥷 Ninja Escape Arena
+# Ninja Escape Arena
 
-Juego 2D **Escape Room + Combate** con perspectiva top-down.
-
-## Características
-
-- Menú de inicio elaborado con tipografía Orbitron y efectos de neón
-- 5 niveles progresivos
-- Combate con espada de energía (ataques Swing y Thrust)
-- Sprites del ninja con fondo transparente
-- Enemigos: Slimes, Guerreros y Boss final
-- Recolecta 🔑 llaves para abrir la puerta de salida
-- Partículas, iluminación ambiental y suelos texturizados
-- HUD moderno con barra de vida dinámica
+Juego 2D de Escape Room + Combate (vista top-down).
 
 ## Controles
 
 | Tecla | Acción |
 |-------|--------|
-| **W A S D** o **Flechas** | Mover |
-| **Espacio** | Atacar |
-| **E** | Interactuar (abrir puerta) |
+| WASD / Flechas | Mover |
+| Espacio | Atacar |
+| E | Abrir puerta (con todas las llaves) |
 
 ## Cómo jugar
 
-1. Abre el juego (GitHub Pages o `index.html` local).
-2. Pulsa **JUGAR** o elige un nivel.
-3. Derrota a los enemigos, recoge las llaves y abre la puerta 🔒 para escapar.
+1. Abre el juego en GitHub Pages o `index.html`.
+2. Pulsa **JUGAR** o elige un nivel (1–5).
+3. Derrota enemigos, recoge llaves y abre la puerta para escapar.
 
-## Estructura
+## Archivos
 
-```
-/
-├── index.html
-├── style.css
-├── game.js
-├── player_sprites.png   ← sprites con transparencia
-└── README.md
-```
+- `index.html`
+- `style.css`
+- `game.js`
+- `player_sprites.jpg`
 
-## Créditos
+## GitHub Pages
 
-Hecho con HTML5 Canvas + JavaScript puro.
-Sprites originales del autor.
+Settings → Pages → Source: branch `main` → carpeta `/ (root)`.
+
+URL típica: `https://maurinior.github.io/ninja-escape-arena/`
