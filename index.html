@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ninja Escape Arena</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <!-- MENU -->
+    <div id="menu-screen" class="screen">
+      <div class="menu-bg"></div>
+      <div class="menu-content">
+        <div class="title-glow">
+          <h1>NINJA<br><span>ESCAPE ARENA</span></h1>
+        </div>
+        <p class="tagline">Escape Room × Combate 2D</p>
+        <div class="menu-buttons">
+          <button id="btn-start" class="btn-main">▶  JUGAR</button>
+          <button id="btn-levels" class="btn-secondary">NIVELES</button>
+        </div>
+        <div id="level-select" class="level-panel hidden">
+          <button class="level-btn" data-level="1">1 · Entrada del Templo</button>
+          <button class="level-btn" data-level="2">2 · Pasillo de las Sombras</button>
+          <button class="level-btn" data-level="3">3 · Sala de Entrenamiento</button>
+          <button class="level-btn" data-level="4">4 · Cripta del Guardián</button>
+          <button class="level-btn" data-level="5">5 · Trono del Señor Oscuro</button>
+          <button id="btn-back" class="btn-back">← Volver</button>
+        </div>
+        <div class="controls-hint">
+          <span>WASD / Flechas</span> Mover &nbsp;·&nbsp;
+          <span>Espacio</span> Atacar &nbsp;·&nbsp;
+          <span>E</span> Interactuar
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div class="hud-left">
+        <div id="health-bar"><div id="health-fill"></div></div>
+        <div class="hud-stat">Nivel <span id="current-level">1</span></div>
+      </div>
+      <div class="hud-right">
+        <div class="hud-stat">🔑 <span id="keys-count">0</span></div>
+        <div class="hud-stat">👾 <span id="enemies-count">0</span></div>
+      </div>
+    </div>
+
+    <!-- END SCREEN -->
+    <div id="end-screen" class="screen hidden">
+      <div class="end-box">
+        <h2 id="end-title">¡Victoria!</h2>
+        <p id="end-message"></p>
+        <div class="end-buttons">
+          <button id="btn-next" class="btn-main">Siguiente Nivel</button>
+          <button id="btn-menu" class="btn-secondary">Menú Principal</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
