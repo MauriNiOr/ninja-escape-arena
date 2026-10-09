@@ -34,7 +34,6 @@ body {
   background: #0d0d1a;
 }
 
-/* ========== SCREENS ========== */
 .screen {
   position: absolute;
   inset: 0;
@@ -195,7 +194,6 @@ button {
   font-weight: 600;
 }
 
-/* ========== HUD ========== */
 #hud {
   position: absolute;
   top: 0;
@@ -247,7 +245,6 @@ button {
   letter-spacing: 0.5px;
 }
 
-/* ========== END SCREEN ========== */
 #end-screen {
   background: rgba(5, 8, 20, 0.88);
   backdrop-filter: blur(4px);
