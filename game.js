@@ -1,692 +1,942 @@
-// ============================================================
-// NINJA ESCAPE ARENA v2 - Mejorado
-// ============================================================
+(() => {
+  var __defProp = Object.defineProperty;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-const menuScreen = document.getElementById('menu-screen');
-const levelSelect = document.getElementById('level-select');
-const hud = document.getElementById('hud');
-const endScreen = document.getElementById('end-screen');
-const healthFill = document.getElementById('health-fill');
-const currentLevelSpan = document.getElementById('current-level');
-const keysCountSpan = document.getElementById('keys-count');
-const enemiesCountSpan = document.getElementById('enemies-count');
-
-// Sprite sheet (ahora PNG transparente)
-const spriteSheet = new Image();
-spriteSheet.src = 'player_sprites.png';
-
-// Coordenadas mejoradas del spritesheet (1024x559)
-const SPRITE = {
-  frameW: 120,
-  frameH: 100,
-  run:   { y: 37,  frames: 8, xs: [18, 146, 265, 389, 513, 635, 758, 880] },
-  swing: { y: 295, frames: 6, xs: [16, 150, 290, 430, 560, 700] },
-  thrust:{ y: 455, frames: 4, xs: [51, 298, 540, 768] }
-};
-
-let gameState = 'menu';
-let currentLevel = 1;
-let keys = {};
-let lastTime = 0;
-let menuParticles = [];
-
-// Player
-const player = {
-  x: 100, y: 300, w: 42, h: 52,
-  speed: 2.9, hp: 100, maxHp: 100,
-  facing: 1, anim: 'idle', frame: 0, frameTimer: 0,
-  attacking: false, attackTimer: 0, invincible: 0,
-  keysCollected: 0
-};
-
-const levels = {
-  1: {
-    name: "Entrada del Templo",
-    walls: [
-      {x:0,y:0,w:800,h:36}, {x:0,y:564,w:800,h:36},
-      {x:0,y:0,w:36,h:600}, {x:764,y:0,w:36,h:600},
-      {x:220,y:160,w:140,h:28}, {x:480,y:360,w:160,h:28}
-    ],
-    enemies: [ {x:520,y:220,type:'slime'}, {x:620,y:420,type:'slime'} ],
-    keys: [{x:320,y:110}],
-    door: {x:710,y:270,w:36,h:90},
-    spawn: {x:70,y:290}
-  },
-  2: {
-    name: "Pasillo de las Sombras",
-    walls: [
-      {x:0,y:0,w:800,h:36}, {x:0,y:564,w:800,h:36},
-      {x:0,y:0,w:36,h:600}, {x:764,y:0,w:36,h:600},
-      {x:160,y:90,w:28,h:210}, {x:160,y:360,w:28,h:180},
-      {x:400,y:70,w:28,h:190}, {x:400,y:330,w:28,h:200},
-      {x:600,y:140,w:28,h:310}
-    ],
-    enemies: [
-      {x:260,y:210,type:'slime'}, {x:520,y:260,type:'warrior'},
-      {x:680,y:450,type:'slime'}
-    ],
-    keys: [{x:90,y:460}, {x:560,y:100}],
-    door: {x:710,y:240,w:36,h:100},
-    spawn: {x:60,y:280}
-  },
-  3: {
-    name: "Sala de Entrenamiento",
-    walls: [
-      {x:0,y:0,w:800,h:36}, {x:0,y:564,w:800,h:36},
-      {x:0,y:0,w:36,h:600}, {x:764,y:0,w:36,h:600},
-      {x:300,y:200,w:200,h:26}, {x:300,y:380,w:200,h:26},
-      {x:200,y:200,w:26,h:206}, {x:574,y:200,w:26,h:206}
-    ],
-    enemies: [
-      {x:140,y:150,type:'warrior'}, {x:650,y:150,type:'warrior'},
-      {x:400,y:460,type:'slime'}, {x:400,y:90,type:'slime'}
-    ],
-    keys: [{x:400,y:290}],
-    door: {x:710,y:250,w:36,h:90},
-    spawn: {x:70,y:290}
-  },
-  4: {
-    name: "Cripta del Guardián",
-    walls: [
-      {x:0,y:0,w:800,h:36}, {x:0,y:564,w:800,h:36},
-      {x:0,y:0,w:36,h:600}, {x:764,y:0,w:36,h:600},
-      {x:100,y:120,w:260,h:24}, {x:450,y:120,w:260,h:24},
-      {x:100,y:460,w:260,h:24}, {x:450,y:460,w:260,h:24},
-      {x:380,y:200,w:40,h:200}
-    ],
-    enemies: [
-      {x:200,y:260,type:'warrior'}, {x:600,y:260,type:'warrior'},
-      {x:200,y:400,type:'slime'}, {x:600,y:400,type:'slime'},
-      {x:400,y:90,type:'warrior'}
-    ],
-    keys: [{x:140,y:200}, {x:660,y:200}, {x:400,y:510}],
-    door: {x:710,y:260,w:36,h:90},
-    spawn: {x:70,y:290}
-  },
-  5: {
-    name: "Trono del Señor Oscuro",
-    walls: [
-      {x:0,y:0,w:800,h:36}, {x:0,y:564,w:800,h:36},
-      {x:0,y:0,w:36,h:600}, {x:764,y:0,w:36,h:600},
-      {x:150,y:100,w:500,h:24}, {x:150,y:480,w:500,h:24},
-      {x:150,y:100,w:24,h:160}, {x:150,y:360,w:24,h:144},
-      {x:626,y:100,w:24,h:160}, {x:626,y:360,w:24,h:144}
-    ],
-    enemies: [
-      {x:400,y:280,type:'boss'},
-      {x:240,y:200,type:'warrior'}, {x:560,y:200,type:'warrior'},
-      {x:240,y:400,type:'slime'}, {x:560,y:400,type:'slime'}
-    ],
-    keys: [{x:200,y:150}, {x:600,y:150}, {x:200,y:420}, {x:600,y:420}],
-    door: {x:710,y:250,w:36,h:100},
-    spawn: {x:70,y:290}
-  }
-};
-
-let currentWalls = [], currentEnemies = [], currentKeys = [], currentDoor = null;
-let particles = [];
-let floorPattern = null;
-
-// Pre-render floor pattern for performance
-function createFloorPattern() {
-  const off = document.createElement('canvas');
-  off.width = 64; off.height = 64;
-  const octx = off.getContext('2d');
-  // Base
-  octx.fillStyle = '#12122a';
-  octx.fillRect(0, 0, 64, 64);
-  // Stone tiles
-  octx.strokeStyle = 'rgba(40,45,80,0.5)';
-  octx.lineWidth = 1;
-  octx.strokeRect(0.5, 0.5, 31, 31);
-  octx.strokeRect(32.5, 0.5, 31, 31);
-  octx.strokeRect(0.5, 32.5, 31, 31);
-  octx.strokeRect(32.5, 32.5, 31, 31);
-  // Subtle variation
-  octx.fillStyle = 'rgba(30,35,70,0.3)';
-  octx.fillRect(2, 2, 12, 8);
-  octx.fillRect(36, 36, 10, 10);
-  octx.fillStyle = 'rgba(20,25,50,0.25)';
-  octx.fillRect(18, 40, 8, 14);
-  return ctx.createPattern(off, 'repeat');
-}
-
-// Input
-window.addEventListener('keydown', e => {
-  keys[e.key.toLowerCase()] = true;
-  if (e.key === ' ' || e.code === 'Space') e.preventDefault();
-});
-window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
-
-// Buttons
-document.getElementById('btn-start').onclick = () => startLevel(1);
-document.getElementById('btn-levels').onclick = () => levelSelect.classList.remove('hidden');
-document.getElementById('btn-back').onclick = () => levelSelect.classList.add('hidden');
-document.querySelectorAll('.level-btn').forEach(btn => {
-  btn.onclick = () => startLevel(parseInt(btn.dataset.level));
-});
-document.getElementById('btn-next').onclick = () => {
-  if (currentLevel < 5) startLevel(currentLevel + 1);
-  else showMenu();
-};
-document.getElementById('btn-menu').onclick = showMenu;
-
-function showMenu() {
-  gameState = 'menu';
-  menuScreen.classList.remove('hidden');
-  levelSelect.classList.add('hidden');
-  hud.classList.add('hidden');
-  endScreen.classList.add('hidden');
-  initMenuParticles();
-}
-
-function startLevel(level) {
-  currentLevel = level;
-  const data = levels[level];
-  player.x = data.spawn.x;
-  player.y = data.spawn.y;
-  player.hp = player.maxHp;
-  player.keysCollected = 0;
-  player.attacking = false;
-  player.invincible = 0;
-  player.anim = 'idle';
-  player.frame = 0;
-  player.facing = 1;
-
-  currentWalls = data.walls.map(w => ({...w}));
-  currentEnemies = data.enemies.map(e => createEnemy(e.x, e.y, e.type));
-  currentKeys = data.keys.map(k => ({x: k.x, y: k.y, collected: false, size: 18, bob: Math.random()*Math.PI*2}));
-  currentDoor = {...data.door, open: false};
-  particles = [];
-
-  menuScreen.classList.add('hidden');
-  endScreen.classList.add('hidden');
-  hud.classList.remove('hidden');
-  currentLevelSpan.textContent = level;
-  updateHUD();
-  gameState = 'playing';
-}
-
-function createEnemy(x, y, type) {
-  const e = {
-    x, y, w: 38, h: 38, hp: 30, maxHp: 30, speed: 1.15,
-    type, timer: 0, attackCooldown: 0, alive: true, color: '#3dff9a',
-    hitFlash: 0
+  // ../tmp/gh-src/content.ts
+  var SKINS = [
+    {
+      id: "cyan",
+      name: "Sombra Cian",
+      blurb: "El filo del templo. Gratis para empezar.",
+      price: 0,
+      sheet: "/sprites/cyan.png",
+      trail: "#3ee7ff"
+    },
+    {
+      id: "crimson",
+      name: "Ronin Carmes\xED",
+      blurb: "Tela roja y katana encendida.",
+      price: 480,
+      sheet: "/sprites/crimson.png",
+      trail: "#ff4d4d"
+    },
+    {
+      id: "gold",
+      name: "Fantasma \xC1ureo",
+      blurb: "Armadura de oro viejo. M\xE1s presencia.",
+      price: 980,
+      sheet: "/sprites/gold.png",
+      trail: "#e8c36a"
+    },
+    {
+      id: "void",
+      name: "Oni del Vac\xEDo",
+      blurb: "Cuernos, visor violeta, hoja de sombra.",
+      price: 1600,
+      sheet: "/sprites/void.png",
+      trail: "#b06bff"
+    }
+  ];
+  var UPGRADES = [
+    { id: "hp", name: "Vitalidad", blurb: "+22 de vida m\xE1xima", price: 320, max: 3 },
+    { id: "speed", name: "Paso ligero", blurb: "+8% de velocidad", price: 360, max: 3 },
+    { id: "edge", name: "Filo", blurb: "+12% de da\xF1o", price: 420, max: 3 }
+  ];
+  var border = (w, h, t = 48) => [
+    { x: 0, y: 0, w, h: t },
+    { x: 0, y: h - t, w, h: t },
+    { x: 0, y: 0, w: t, h },
+    { x: w - t, y: 0, w: t, h }
+  ];
+  var LEVELS = [
+    {
+      id: 1,
+      name: "Umbral",
+      brief: "Una llave. Dos limos. Aprende el templo.",
+      w: 1280,
+      h: 860,
+      spawn: { x: 160, y: 430 },
+      door: { x: 1160, y: 380, w: 56, h: 100 },
+      walls: [
+        ...border(1280, 860),
+        { x: 420, y: 180, w: 180, h: 36 },
+        { x: 720, y: 560, w: 220, h: 36 }
+      ],
+      keys: [{ x: 560, y: 220 }],
+      enemies: [
+        { x: 700, y: 300, kind: "slime" },
+        { x: 900, y: 520, kind: "slime" }
+      ],
+      reward: 90
+    },
+    {
+      id: 2,
+      name: "Pasillo partido",
+      brief: "Dos llaves y un guardia entre columnas.",
+      w: 1560,
+      h: 920,
+      spawn: { x: 140, y: 460 },
+      door: { x: 1440, y: 400, w: 56, h: 110 },
+      walls: [
+        ...border(1560, 920),
+        { x: 360, y: 80, w: 36, h: 340 },
+        { x: 360, y: 540, w: 36, h: 300 },
+        { x: 780, y: 80, w: 36, h: 280 },
+        { x: 780, y: 480, w: 36, h: 360 },
+        { x: 1120, y: 220, w: 36, h: 480 }
+      ],
+      keys: [
+        { x: 240, y: 760 },
+        { x: 980, y: 160 }
+      ],
+      enemies: [
+        { x: 520, y: 240, kind: "slime" },
+        { x: 600, y: 680, kind: "slime" },
+        { x: 960, y: 420, kind: "guard" }
+      ],
+      reward: 140
+    },
+    {
+      id: 3,
+      name: "Patio de ensayo",
+      brief: "El anillo central esconde la llave.",
+      w: 1400,
+      h: 1e3,
+      spawn: { x: 140, y: 500 },
+      door: { x: 1280, y: 450, w: 56, h: 100 },
+      walls: [
+        ...border(1400, 1e3),
+        { x: 420, y: 280, w: 520, h: 32 },
+        { x: 420, y: 680, w: 520, h: 32 },
+        { x: 420, y: 280, w: 32, h: 432 },
+        { x: 908, y: 280, w: 32, h: 432 }
+      ],
+      keys: [{ x: 680, y: 490 }],
+      enemies: [
+        { x: 250, y: 200, kind: "guard" },
+        { x: 1100, y: 200, kind: "guard" },
+        { x: 250, y: 780, kind: "slime" },
+        { x: 1100, y: 780, kind: "slime" }
+      ],
+      reward: 180
+    },
+    {
+      id: 4,
+      name: "Cripta",
+      brief: "Tres llaves. El guardi\xE1n no duerme.",
+      w: 1600,
+      h: 1040,
+      spawn: { x: 150, y: 520 },
+      door: { x: 1480, y: 460, w: 56, h: 110 },
+      walls: [
+        ...border(1600, 1040),
+        { x: 280, y: 180, w: 420, h: 28 },
+        { x: 900, y: 180, w: 420, h: 28 },
+        { x: 280, y: 820, w: 420, h: 28 },
+        { x: 900, y: 820, w: 420, h: 28 },
+        { x: 760, y: 360, w: 48, h: 320 }
+      ],
+      keys: [
+        { x: 360, y: 280 },
+        { x: 1200, y: 280 },
+        { x: 780, y: 900 }
+      ],
+      enemies: [
+        { x: 480, y: 480, kind: "guard" },
+        { x: 1100, y: 480, kind: "guard" },
+        { x: 480, y: 700, kind: "slime" },
+        { x: 1100, y: 700, kind: "slime" },
+        { x: 780, y: 240, kind: "guard" }
+      ],
+      reward: 240
+    },
+    {
+      id: 5,
+      name: "Trono oscuro",
+      brief: "El alcaide. Cuatro llaves. Una salida.",
+      w: 1680,
+      h: 1100,
+      spawn: { x: 160, y: 550 },
+      door: { x: 1560, y: 490, w: 56, h: 120 },
+      walls: [
+        ...border(1680, 1100),
+        { x: 300, y: 160, w: 1080, h: 28 },
+        { x: 300, y: 900, w: 1080, h: 28 },
+        { x: 300, y: 160, w: 28, h: 260 },
+        { x: 300, y: 680, w: 28, h: 248 },
+        { x: 1352, y: 160, w: 28, h: 260 },
+        { x: 1352, y: 680, w: 28, h: 248 }
+      ],
+      keys: [
+        { x: 420, y: 260 },
+        { x: 1240, y: 260 },
+        { x: 420, y: 820 },
+        { x: 1240, y: 820 }
+      ],
+      enemies: [
+        { x: 840, y: 500, kind: "boss" },
+        { x: 560, y: 360, kind: "guard" },
+        { x: 1120, y: 360, kind: "guard" },
+        { x: 560, y: 740, kind: "slime" },
+        { x: 1120, y: 740, kind: "slime" }
+      ],
+      reward: 420
+    }
+  ];
+  var ENEMY = {
+    slime: { hp: 36, speed: 78, dmg: 8, r: 22, coins: 28, sheet: "/sprites/slime.png", frames: 4, scale: 1 },
+    guard: { hp: 78, speed: 96, dmg: 12, r: 26, coins: 48, sheet: "/sprites/guard.png", frames: 4, scale: 1.15 },
+    boss: { hp: 280, speed: 70, dmg: 18, r: 40, coins: 140, sheet: "/sprites/boss.png", frames: 4, scale: 1.7 }
   };
-  if (type === 'warrior') {
-    e.hp = e.maxHp = 55; e.speed = 1.55; e.w = 42; e.h = 46; e.color = '#ff6b4a';
+
+  // ../tmp/gh-src/engine.ts
+  var PLAYER_R = 18;
+  function hit(a, b, ra, rb) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return dx * dx + dy * dy < (ra + rb) * (ra + rb);
   }
-  if (type === 'boss') {
-    e.hp = e.maxHp = 180; e.speed = 0.95; e.w = 68; e.h = 68; e.color = '#b44aff';
-  }
-  return e;
-}
-
-function updateHUD() {
-  const pct = Math.max(0, player.hp / player.maxHp * 100);
-  healthFill.style.width = pct + '%';
-  if (pct < 30) healthFill.style.background = 'linear-gradient(90deg, #ff1030, #ff4060)';
-  else if (pct < 60) healthFill.style.background = 'linear-gradient(90deg, #ff6030, #ff9040)';
-  else healthFill.style.background = 'linear-gradient(90deg, #20c060, #40e080)';
-  keysCountSpan.textContent = player.keysCollected;
-  enemiesCountSpan.textContent = currentEnemies.filter(e => e.alive).length;
-}
-
-function rectCollide(a, b) {
-  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-}
-
-function moveWithCollision(obj, dx, dy) {
-  obj.x += dx;
-  for (const wall of currentWalls) {
-    if (rectCollide(obj, wall)) {
-      if (dx > 0) obj.x = wall.x - obj.w;
-      else if (dx < 0) obj.x = wall.x + wall.w;
+  function block(x, y, r, walls) {
+    for (const w of walls) {
+      const nx = Math.max(w.x, Math.min(x, w.x + w.w));
+      const ny = Math.max(w.y, Math.min(y, w.y + w.h));
+      const dx = x - nx;
+      const dy = y - ny;
+      if (dx * dx + dy * dy < r * r) return true;
     }
+    return false;
   }
-  obj.y += dy;
-  for (const wall of currentWalls) {
-    if (rectCollide(obj, wall)) {
-      if (dy > 0) obj.y = wall.y - obj.h;
-      else if (dy < 0) obj.y = wall.y + wall.h;
-    }
+  function slide(x, y, dx, dy, r, walls) {
+    let nx = x + dx;
+    if (block(nx, y, r, walls)) nx = x;
+    let ny = y + dy;
+    if (block(nx, ny, r, walls)) ny = y;
+    return { x: nx, y: ny };
   }
-  obj.x = Math.max(36, Math.min(canvas.width - 36 - obj.w, obj.x));
-  obj.y = Math.max(36, Math.min(canvas.height - 36 - obj.h, obj.y));
-}
-
-function updatePlayer(dt) {
-  if (player.invincible > 0) player.invincible -= dt;
-
-  let dx = 0, dy = 0;
-  if (keys['w'] || keys['arrowup']) dy = -player.speed;
-  if (keys['s'] || keys['arrowdown']) dy = player.speed;
-  if (keys['a'] || keys['arrowleft']) { dx = -player.speed; player.facing = -1; }
-  if (keys['d'] || keys['arrowright']) { dx = player.speed; player.facing = 1; }
-
-  if (dx && dy) { dx *= 0.7071; dy *= 0.7071; }
-
-  if (!player.attacking) {
-    moveWithCollision(player, dx, dy);
-    player.anim = (dx || dy) ? 'run' : 'idle';
-  }
-
-  // Attack
-  if ((keys[' '] || keys['space']) && !player.attacking) {
-    player.attacking = true;
-    player.attackTimer = 0.32;
-    player.anim = Math.random() > 0.45 ? 'swing' : 'thrust';
-    player.frame = 0;
-  }
-
-  if (player.attacking) {
-    player.attackTimer -= dt;
-    if (player.attackTimer <= 0) {
-      player.attacking = false;
-      player.anim = 'idle';
-    } else {
-      const atk = {
-        x: player.facing === 1 ? player.x + player.w - 8 : player.x - 42,
-        y: player.y + 8, w: 48, h: 38
-      };
-      currentEnemies.forEach(e => {
-        if (e.alive && rectCollide(atk, e) && e.hitFlash <= 0) {
-          e.hp -= 20;
-          e.hitFlash = 0.15;
-          spawnParticles(e.x + e.w/2, e.y + e.h/2, e.color, 8);
-          if (e.hp <= 0) {
-            e.alive = false;
-            spawnParticles(e.x + e.w/2, e.y + e.h/2, '#ffffff', 16);
-            spawnParticles(e.x + e.w/2, e.y + e.h/2, e.color, 10);
-          }
-        }
+  var Arena = class {
+    constructor(canvas, save2, levelId, onHud, onEnd) {
+      __publicField(this, "canvas");
+      __publicField(this, "ctx");
+      __publicField(this, "keys", /* @__PURE__ */ new Set());
+      __publicField(this, "level");
+      __publicField(this, "save");
+      __publicField(this, "px", 0);
+      __publicField(this, "py", 0);
+      __publicField(this, "hp", 100);
+      __publicField(this, "maxHp", 100);
+      __publicField(this, "facing", 0);
+      __publicField(this, "moving", false);
+      __publicField(this, "frame", 0);
+      __publicField(this, "anim", 0);
+      __publicField(this, "attack", 0);
+      __publicField(this, "attackCd", 0);
+      __publicField(this, "iframes", 0);
+      __publicField(this, "keysGot", 0);
+      __publicField(this, "keyState", []);
+      __publicField(this, "doorOpen", false);
+      __publicField(this, "enemies", []);
+      __publicField(this, "sparks", []);
+      __publicField(this, "camX", 0);
+      __publicField(this, "camY", 0);
+      __publicField(this, "shake", 0);
+      __publicField(this, "images", /* @__PURE__ */ new Map());
+      __publicField(this, "running", false);
+      __publicField(this, "raf", 0);
+      __publicField(this, "last", 0);
+      __publicField(this, "onHud");
+      __publicField(this, "onEnd");
+      __publicField(this, "ended", false);
+      __publicField(this, "stick", { x: 0, y: 0 });
+      __publicField(this, "dmgMul", 1);
+      __publicField(this, "speedMul", 1);
+      __publicField(this, "hudTick", 0);
+      __publicField(this, "dpr", 1);
+      __publicField(this, "viewW", 960);
+      __publicField(this, "viewH", 540);
+      __publicField(this, "sheet", "/sprites/cyan.png");
+      __publicField(this, "trail", "#3ee7ff");
+      this.canvas = canvas;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("canvas");
+      this.ctx = ctx;
+      this.save = save2;
+      this.level = LEVELS[levelId - 1] ?? LEVELS[0];
+      this.onHud = onHud;
+      this.onEnd = onEnd;
+      const skin = SKINS.find((s) => s.id === save2.equipped) ?? SKINS[0];
+      this.sheet = skin.sheet;
+      this.trail = skin.trail;
+      this.maxHp = 100 + save2.upgrades.hp * 22;
+      this.hp = this.maxHp;
+      this.dmgMul = 1 + save2.upgrades.edge * 0.12;
+      this.speedMul = 1 + save2.upgrades.speed * 0.08;
+      this.px = this.level.spawn.x;
+      this.py = this.level.spawn.y;
+      this.keyState = this.level.keys.map(() => false);
+      this.enemies = this.level.enemies.map((e) => {
+        const st = ENEMY[e.kind];
+        return {
+          x: e.x,
+          y: e.y,
+          hp: st.hp,
+          max: st.hp,
+          kind: e.kind,
+          cool: 0.4,
+          frame: 0,
+          hit: 0,
+          alive: true
+        };
       });
+      this.load(this.sheet);
+      this.load("/sprites/floor.jpg");
+      this.load("/sprites/slime.png");
+      this.load("/sprites/guard.png");
+      this.load("/sprites/boss.png");
+      this.load("/sprites/key.png");
+      this.load("/sprites/slash.png");
     }
-  }
-
-  // Keys
-  currentKeys.forEach(k => {
-    if (!k.collected) {
-      k.bob += dt * 3;
-      if (rectCollide(player, {x:k.x, y:k.y, w:k.size, h:k.size})) {
-        k.collected = true;
-        player.keysCollected++;
-        spawnParticles(k.x + 8, k.y + 8, '#ffdd44', 12);
+    load(src) {
+      if (this.images.has(src)) return;
+      const img = new Image();
+      const map = globalThis.NEA_ASSETS;
+      img.src = map?.[src] ?? src;
+      this.images.set(src, img);
+    }
+    resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = this.canvas.getBoundingClientRect();
+      this.dpr = dpr;
+      this.viewW = Math.max(2, rect.width);
+      this.viewH = Math.max(2, rect.height);
+      this.canvas.width = Math.floor(this.viewW * dpr);
+      this.canvas.height = Math.floor(this.viewH * dpr);
+    }
+    start() {
+      this.running = true;
+      this.last = performance.now();
+      const loop = (t) => {
+        if (!this.running) return;
+        const dt = Math.min(0.05, (t - this.last) / 1e3);
+        this.last = t;
+        this.step(dt);
+        this.draw();
+        this.raf = requestAnimationFrame(loop);
+      };
+      this.raf = requestAnimationFrame(loop);
+      if (false) {
+        window.__controlsTest = {
+          getX: () => this.px,
+          getY: () => this.py,
+          setKeys: (codes) => {
+            this.keys = new Set(codes);
+          }
+        };
       }
     }
-  });
-
-  // Door
-  if (keys['e'] && currentDoor && !currentDoor.open) {
-    const dist = Math.hypot(
-      player.x + player.w/2 - (currentDoor.x + currentDoor.w/2),
-      player.y + player.h/2 - (currentDoor.y + currentDoor.h/2)
-    );
-    if (dist < 85 && player.keysCollected >= levels[currentLevel].keys.length) {
-      currentDoor.open = true;
-      spawnParticles(currentDoor.x + 18, currentDoor.y + 45, '#00ffcc', 20);
+    stop() {
+      this.running = false;
+      cancelAnimationFrame(this.raf);
+      if (false) delete window.__controlsTest;
     }
-  }
-
-  if (currentDoor && currentDoor.open && rectCollide(player, currentDoor)) {
-    winLevel();
-  }
-
-  // Anim
-  player.frameTimer += dt;
-  const animSpeed = player.anim === 'run' ? 0.09 : 0.12;
-  if (player.frameTimer > animSpeed) {
-    player.frameTimer = 0;
-    player.frame++;
-  }
-}
-
-function updateEnemies(dt) {
-  currentEnemies.forEach(e => {
-    if (!e.alive) return;
-    e.timer += dt;
-    e.attackCooldown = Math.max(0, e.attackCooldown - dt);
-    e.hitFlash = Math.max(0, e.hitFlash - dt);
-
-    const dx = player.x - e.x, dy = player.y - e.y;
-    const dist = Math.hypot(dx, dy) || 1;
-
-    if (dist > 25 && dist < 380) {
-      moveWithCollision(e, (dx/dist)*e.speed, (dy/dist)*e.speed);
+    burst(x, y, color, n = 8) {
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = 40 + Math.random() * 140;
+        this.sparks.push({
+          x,
+          y,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp,
+          life: 0.35 + Math.random() * 0.3,
+          color,
+          s: 2 + Math.random() * 3
+        });
+      }
     }
-
-    if (dist < 52 && e.attackCooldown <= 0 && player.invincible <= 0) {
-      const dmg = e.type === 'boss' ? 14 : e.type === 'warrior' ? 9 : 5;
-      player.hp -= dmg;
-      player.invincible = 0.7;
-      e.attackCooldown = e.type === 'boss' ? 1.0 : 1.15;
-      spawnParticles(player.x + player.w/2, player.y + player.h/2, '#ff3355', 8);
-      if (player.hp <= 0) { player.hp = 0; loseLevel(); }
+    step(dt) {
+      if (this.ended) return;
+      let ix = this.stick.x;
+      let iy = this.stick.y;
+      if (this.keys.has("KeyA") || this.keys.has("ArrowLeft")) ix -= 1;
+      if (this.keys.has("KeyD") || this.keys.has("ArrowRight")) ix += 1;
+      if (this.keys.has("KeyW") || this.keys.has("ArrowUp")) iy -= 1;
+      if (this.keys.has("KeyS") || this.keys.has("ArrowDown")) iy += 1;
+      const len = Math.hypot(ix, iy) || 1;
+      if (Math.hypot(ix, iy) > 1) {
+        ix /= len;
+        iy /= len;
+      }
+      const speed = 210 * this.speedMul;
+      this.moving = Math.hypot(ix, iy) > 0.12 && this.attack <= 0.18;
+      if (this.moving) {
+        const next = slide(this.px, this.py, ix * speed * dt, iy * speed * dt, PLAYER_R, this.level.walls);
+        this.px = next.x;
+        this.py = next.y;
+        if (Math.abs(ix) > Math.abs(iy)) this.facing = ix < 0 ? 1 : 2;
+        else this.facing = iy < 0 ? 3 : 0;
+        this.anim += dt;
+      }
+      this.frame = this.moving ? Math.floor(this.anim * 9) % 4 : 0;
+      if ((this.keys.has("Space") || this.keys.has("KeyJ")) && this.attackCd <= 0) {
+        this.attack = 0.28;
+        this.attackCd = 0.38;
+        this.shake = Math.max(this.shake, 4);
+      }
+      this.attack = Math.max(0, this.attack - dt);
+      this.attackCd = Math.max(0, this.attackCd - dt);
+      this.iframes = Math.max(0, this.iframes - dt);
+      this.shake = Math.max(0, this.shake - dt * 18);
+      if (this.attack > 0.12 && this.attack < 0.24) {
+        const dir = [
+          { x: 0, y: 1 },
+          { x: -1, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: -1 }
+        ][this.facing];
+        const ax = this.px + dir.x * 36;
+        const ay = this.py + dir.y * 28;
+        for (const e of this.enemies) {
+          if (!e.alive || e.hit > 0.12) continue;
+          if (hit({ x: ax, y: ay }, e, 30, ENEMY[e.kind].r)) {
+            e.hp -= 22 * this.dmgMul;
+            e.hit = 0.16;
+            this.burst(e.x, e.y, this.trail, 7);
+            this.shake = Math.max(this.shake, 6);
+            if (e.hp <= 0) {
+              e.alive = false;
+              this.burst(e.x, e.y, "#fff", 14);
+            }
+          }
+        }
+      }
+      for (let i = 0; i < this.level.keys.length; i++) {
+        if (this.keyState[i]) continue;
+        const k = this.level.keys[i];
+        if (hit({ x: this.px, y: this.py }, k, PLAYER_R, 16)) {
+          this.keyState[i] = true;
+          this.keysGot++;
+          this.burst(k.x, k.y, "#e8c36a", 10);
+        }
+      }
+      if (!this.doorOpen && this.keysGot >= this.level.keys.length) {
+        const d = this.level.door;
+        const cx = d.x + d.w / 2;
+        const cy = d.y + d.h / 2;
+        if (hit({ x: this.px, y: this.py }, { x: cx, y: cy }, PLAYER_R + 20, 36) || this.keys.has("KeyE")) {
+          if (hit({ x: this.px, y: this.py }, { x: cx, y: cy }, 70, 40)) this.doorOpen = true;
+        }
+      }
+      if (this.doorOpen) {
+        const d = this.level.door;
+        if (this.px > d.x - 8 && this.px < d.x + d.w + 8 && this.py > d.y && this.py < d.y + d.h) {
+          this.finish("clear");
+        }
+      }
+      for (const e of this.enemies) {
+        if (!e.alive) continue;
+        e.cool = Math.max(0, e.cool - dt);
+        e.hit = Math.max(0, e.hit - dt);
+        e.frame = (e.frame + dt * 6) % 4;
+        const dx = this.px - e.x;
+        const dy = this.py - e.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const st = ENEMY[e.kind];
+        if (dist < 420 && dist > st.r + 8) {
+          const next = slide(
+            e.x,
+            e.y,
+            dx / dist * st.speed * dt,
+            dy / dist * st.speed * dt,
+            st.r * 0.7,
+            this.level.walls
+          );
+          e.x = next.x;
+          e.y = next.y;
+        }
+        if (dist < st.r + PLAYER_R + 6 && e.cool <= 0 && this.iframes <= 0) {
+          this.hp -= st.dmg;
+          this.iframes = 0.65;
+          e.cool = 0.9;
+          this.shake = 8;
+          this.burst(this.px, this.py, "#ff6a3d", 8);
+          if (this.hp <= 0) {
+            this.hp = 0;
+            this.finish("dead");
+          }
+        }
+      }
+      this.sparks = this.sparks.filter((p) => {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        return p.life > 0;
+      });
+      const vw = this.viewW;
+      const vh = this.viewH;
+      const targetX = this.px - vw / 2;
+      const targetY = this.py - vh / 2;
+      this.camX += (targetX - this.camX) * Math.min(1, dt * 8);
+      this.camY += (targetY - this.camY) * Math.min(1, dt * 8);
+      this.hudTick = (this.hudTick ?? 0) + dt;
+      if (this.hudTick > 0.12) {
+        this.hudTick = 0;
+        const alive = this.enemies.filter((e) => e.alive).length;
+        this.onHud({
+          hp: this.hp,
+          max: this.maxHp,
+          keys: this.keysGot,
+          need: this.level.keys.length,
+          enemies: alive,
+          levelName: this.level.name
+        });
+      }
     }
-  });
-  updateHUD();
-}
-
-function spawnParticles(x, y, color, count = 6) {
-  for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = 1.5 + Math.random() * 4;
-    particles.push({
-      x, y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      life: 0.35 + Math.random() * 0.4,
-      maxLife: 0.5,
-      color, size: 2.5 + Math.random() * 3.5
-    });
-  }
-}
-
-function updateParticles(dt) {
-  particles = particles.filter(p => {
-    p.x += p.vx; p.y += p.vy;
-    p.vy += 8 * dt; // gravity
-    p.life -= dt;
-    return p.life > 0;
-  });
-}
-
-function initMenuParticles() {
-  menuParticles = [];
-  for (let i = 0; i < 40; i++) {
-    menuParticles.push({
-      x: Math.random() * 800,
-      y: Math.random() * 600,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: -0.2 - Math.random() * 0.5,
-      size: 1 + Math.random() * 2.5,
-      alpha: 0.2 + Math.random() * 0.5
-    });
-  }
-}
-
-function winLevel() {
-  gameState = 'victory';
-  endScreen.classList.remove('hidden');
-  endScreen.classList.add('victory');
-  endScreen.classList.remove('defeat');
-  document.getElementById('end-title').textContent = '¡NIVEL COMPLETADO!';
-  document.getElementById('end-message').textContent =
-    currentLevel < 5
-      ? `Has escapado del nivel ${currentLevel}. ¡Continúa tu misión!`
-      : '¡Has derrotado al Señor Oscuro y liberado el templo! ¡Victoria final!';
-  document.getElementById('btn-next').style.display = currentLevel < 5 ? 'inline-block' : 'none';
-}
-
-function loseLevel() {
-  gameState = 'defeat';
-  endScreen.classList.remove('hidden');
-  endScreen.classList.add('defeat');
-  endScreen.classList.remove('victory');
-  document.getElementById('end-title').textContent = 'DERROTA';
-  document.getElementById('end-message').textContent = 'Has caído en combate. ¡Levántate y vuelve a intentarlo!';
-  document.getElementById('btn-next').style.display = 'none';
-}
-
-// ==================== DRAW ====================
-function draw() {
-  // Floor
-  if (!floorPattern) floorPattern = createFloorPattern();
-  ctx.fillStyle = floorPattern;
-  ctx.fillRect(0, 0, 800, 600);
-
-  // Soft vignette overlay
-  const grd = ctx.createRadialGradient(400, 300, 180, 400, 300, 520);
-  grd.addColorStop(0, 'rgba(0,0,0,0)');
-  grd.addColorStop(1, 'rgba(0,0,15,0.55)');
-  ctx.fillStyle = grd;
-  ctx.fillRect(0, 0, 800, 600);
-
-  if (gameState === 'menu') {
-    // menu particles on canvas under UI
-    menuParticles.forEach(p => {
-      p.x += p.vx; p.y += p.vy;
-      if (p.y < -10) { p.y = 610; p.x = Math.random()*800; }
-      ctx.globalAlpha = p.alpha;
-      ctx.fillStyle = '#00d4ff';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
-      ctx.fill();
-    });
-    ctx.globalAlpha = 1;
-    return;
-  }
-
-  if (gameState !== 'playing' && gameState !== 'victory' && gameState !== 'defeat') return;
-
-  // Walls with depth
-  currentWalls.forEach(w => {
-    // main
-    ctx.fillStyle = '#1e2440';
-    ctx.fillRect(w.x, w.y, w.w, w.h);
-    // top highlight
-    ctx.fillStyle = '#2e3a5a';
-    ctx.fillRect(w.x, w.y, w.w, 4);
-    // side shadow
-    ctx.fillStyle = '#12162a';
-    ctx.fillRect(w.x + w.w - 4, w.y, 4, w.h);
-    // border
-    ctx.strokeStyle = '#3a4a70';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(w.x + 0.5, w.y + 0.5, w.w - 1, w.h - 1);
-  });
-
-  // Door
-  if (currentDoor) {
-    if (currentDoor.open) {
-      ctx.fillStyle = 'rgba(0, 255, 180, 0.12)';
-      ctx.fillRect(currentDoor.x - 4, currentDoor.y - 4, currentDoor.w + 8, currentDoor.h + 8);
-      ctx.strokeStyle = '#00ffb0';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(currentDoor.x, currentDoor.y, currentDoor.w, currentDoor.h);
-      ctx.fillStyle = '#00ffb0';
-      ctx.font = 'bold 11px Rajdhani, sans-serif';
-      ctx.fillText('SALIDA', currentDoor.x - 2, currentDoor.y - 8);
-    } else {
-      // door body
-      ctx.fillStyle = '#3a2a18';
-      ctx.fillRect(currentDoor.x, currentDoor.y, currentDoor.w, currentDoor.h);
-      ctx.fillStyle = '#5a4030';
-      ctx.fillRect(currentDoor.x + 4, currentDoor.y + 6, currentDoor.w - 8, currentDoor.h - 12);
-      // lock
-      ctx.fillStyle = '#ffcc33';
-      ctx.font = '22px serif';
-      ctx.fillText('🔒', currentDoor.x + 6, currentDoor.y + 55);
-      ctx.strokeStyle = '#8a6040';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(currentDoor.x, currentDoor.y, currentDoor.w, currentDoor.h);
+    finish(reason) {
+      if (this.ended) return;
+      this.ended = true;
+      let coins = 0;
+      if (reason === "clear") {
+        coins = this.level.reward;
+        for (const e of this.enemies) if (!e.alive) coins += ENEMY[e.kind].coins;
+      } else {
+        coins = this.enemies.filter((e) => !e.alive).reduce((s, e) => s + Math.floor(ENEMY[e.kind].coins * 0.4), 0);
+      }
+      this.onEnd(reason, coins);
     }
-  }
-
-  // Keys (floating)
-  currentKeys.forEach(k => {
-    if (k.collected) return;
-    const bobY = Math.sin(k.bob) * 4;
-    // glow
-    ctx.shadowColor = '#ffdd44';
-    ctx.shadowBlur = 12;
-    ctx.fillStyle = '#ffdd44';
-    ctx.beginPath();
-    ctx.arc(k.x + 9, k.y + 9 + bobY, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    // key shape
-    ctx.fillStyle = '#cc9900';
-    ctx.fillRect(k.x + 7, k.y + 15 + bobY, 4, 9);
-    ctx.fillRect(k.x + 7, k.y + 22 + bobY, 7, 3);
-  });
-
-  // Enemies
-  currentEnemies.forEach(e => {
-    if (!e.alive) return;
-    const flash = e.hitFlash > 0;
-
-    if (e.type === 'boss') {
-      ctx.fillStyle = flash ? '#fff' : e.color;
-      ctx.beginPath();
-      ctx.arc(e.x + e.w/2, e.y + e.h/2, e.w/2 - 2, 0, Math.PI * 2);
-      ctx.fill();
-      // eyes
-      ctx.fillStyle = '#1a0030';
-      ctx.beginPath();
-      ctx.arc(e.x + e.w/2 - 14, e.y + e.h/2 - 8, 7, 0, Math.PI * 2);
-      ctx.arc(e.x + e.w/2 + 14, e.y + e.h/2 - 8, 7, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ff44aa';
-      ctx.beginPath();
-      ctx.arc(e.x + e.w/2 - 14, e.y + e.h/2 - 8, 3, 0, Math.PI * 2);
-      ctx.arc(e.x + e.w/2 + 14, e.y + e.h/2 - 8, 3, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (e.type === 'warrior') {
-      ctx.fillStyle = flash ? '#fff' : e.color;
-      ctx.fillRect(e.x, e.y, e.w, e.h);
-      // helmet
-      ctx.fillStyle = '#2a1a10';
-      ctx.fillRect(e.x + 6, e.y + 2, e.w - 12, 12);
-      // sword
-      ctx.fillStyle = '#ccddee';
-      ctx.fillRect(e.x + e.w - 6, e.y + 8, 7, 28);
-      ctx.fillStyle = '#8899aa';
-      ctx.fillRect(e.x + e.w - 8, e.y + 6, 11, 5);
-    } else {
-      // slime
-      ctx.fillStyle = flash ? '#fff' : e.color;
-      ctx.beginPath();
-      ctx.ellipse(e.x + e.w/2, e.y + e.h/2 + 4, e.w/2 - 1, e.h/2 - 4, 0, 0, Math.PI * 2);
-      ctx.fill();
-      // eyes
-      ctx.fillStyle = '#003322';
-      ctx.beginPath();
-      ctx.arc(e.x + 12, e.y + 14, 4.5, 0, Math.PI * 2);
-      ctx.arc(e.x + 26, e.y + 14, 4.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(e.x + 13, e.y + 13, 1.5, 0, Math.PI * 2);
-      ctx.arc(e.x + 27, e.y + 13, 1.5, 0, Math.PI * 2);
-      ctx.fill();
+    draw() {
+      const ctx = this.ctx;
+      const w = this.viewW;
+      const h = this.viewH;
+      const sx = (Math.random() - 0.5) * this.shake;
+      const sy = (Math.random() - 0.5) * this.shake;
+      ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      ctx.fillStyle = "#07090f";
+      ctx.fillRect(0, 0, w, h);
+      ctx.setTransform(this.dpr, 0, 0, this.dpr, -this.camX * this.dpr + sx * this.dpr, -this.camY * this.dpr + sy * this.dpr);
+      const floor = this.images.get("/sprites/floor.jpg");
+      const tile = 160;
+      if (floor && floor.complete && floor.naturalWidth) {
+        const x0 = Math.floor(this.camX / tile) * tile - tile;
+        const y0 = Math.floor(this.camY / tile) * tile - tile;
+        for (let y = y0; y < this.camY + h + tile; y += tile) {
+          for (let x = x0; x < this.camX + w + tile; x += tile) {
+            ctx.drawImage(floor, x, y, tile + 1, tile + 1);
+          }
+        }
+      }
+      ctx.fillStyle = "rgba(4,6,14,0.28)";
+      ctx.fillRect(this.camX - 40, this.camY - 40, w + 80, h + 80);
+      for (const wall of this.level.walls) {
+        ctx.fillStyle = "#141824";
+        ctx.fillRect(wall.x, wall.y + 8, wall.w, wall.h);
+        ctx.fillStyle = "#2a3144";
+        ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
+        ctx.fillStyle = "#3c465c";
+        ctx.fillRect(wall.x, wall.y, wall.w, 6);
+        ctx.strokeStyle = "rgba(62,231,255,0.12)";
+        ctx.strokeRect(wall.x + 0.5, wall.y + 0.5, wall.w - 1, wall.h - 1);
+      }
+      const d = this.level.door;
+      if (this.doorOpen) {
+        ctx.fillStyle = "rgba(62,231,255,0.18)";
+        ctx.fillRect(d.x - 6, d.y - 6, d.w + 12, d.h + 12);
+        ctx.strokeStyle = "#3ee7ff";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(d.x, d.y, d.w, d.h);
+      } else {
+        ctx.fillStyle = "#3a2a1c";
+        ctx.fillRect(d.x, d.y, d.w, d.h);
+        ctx.fillStyle = "#6a4a30";
+        ctx.fillRect(d.x + 6, d.y + 8, d.w - 12, d.h - 16);
+        ctx.fillStyle = "#e8c36a";
+        ctx.font = "22px Outfit, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(this.keysGot >= this.level.keys.length ? "E" : "LOCK", d.x + d.w / 2, d.y + d.h / 2);
+      }
+      const keyImg = this.images.get("/sprites/key.png");
+      this.level.keys.forEach((k, i) => {
+        if (this.keyState[i]) return;
+        const bob = Math.sin(performance.now() / 280 + i) * 4;
+        if (keyImg && keyImg.complete) {
+          ctx.drawImage(keyImg, k.x - 18, k.y - 18 + bob, 36, 36);
+        } else {
+          ctx.fillStyle = "#e8c36a";
+          ctx.beginPath();
+          ctx.arc(k.x, k.y + bob, 8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+      const ordered = [...this.enemies.filter((e) => e.alive), { x: this.px, y: this.py, player: true }];
+      ordered.sort((a, b) => a.y - b.y);
+      for (const item of ordered) {
+        if ("player" in item) this.drawPlayer(ctx);
+        else this.drawEnemy(ctx, item);
+      }
+      if (this.attack > 0) {
+        const slash = this.images.get("/sprites/slash.png");
+        const dir = [
+          { x: 0, y: 1, rot: Math.PI / 2 },
+          { x: -1, y: 0, rot: Math.PI },
+          { x: 1, y: 0, rot: 0 },
+          { x: 0, y: -1, rot: -Math.PI / 2 }
+        ][this.facing];
+        const f = Math.min(3, Math.floor((0.28 - this.attack) / 0.07));
+        ctx.save();
+        ctx.translate(this.px + dir.x * 34, this.py + dir.y * 26);
+        ctx.rotate(dir.rot);
+        ctx.globalAlpha = 0.9;
+        if (slash && slash.complete && slash.naturalWidth) {
+          const cw = slash.naturalWidth / 2;
+          const ch = slash.naturalHeight / 2;
+          const col = f % 2;
+          const row = Math.floor(f / 2);
+          ctx.drawImage(slash, col * cw, row * ch, cw, ch, -36, -28, 72, 56);
+        } else {
+          ctx.fillStyle = this.trail;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 28, 16, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+        ctx.globalAlpha = 1;
+      }
+      for (const p of this.sparks) {
+        ctx.globalAlpha = Math.max(0, p.life * 2);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+      const g = ctx.createRadialGradient(w / 2, h / 2, h * 0.28, w / 2, h / 2, h * 0.75);
+      g.addColorStop(0, "rgba(0,0,0,0)");
+      g.addColorStop(1, "rgba(0,0,0,0.55)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
     }
-
-    // HP bar
-    const hpPct = e.hp / e.maxHp;
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(e.x, e.y - 11, e.w, 5);
-    ctx.fillStyle = hpPct > 0.5 ? '#44ee66' : hpPct > 0.25 ? '#ffaa22' : '#ff3344';
-    ctx.fillRect(e.x, e.y - 11, e.w * hpPct, 5);
-  });
-
-  // Player
-  drawPlayer();
-
-  // Attack slash effect
-  if (player.attacking) {
-    ctx.save();
-    ctx.globalAlpha = 0.55 * (player.attackTimer / 0.32);
-    ctx.fillStyle = '#00e8ff';
-    const ax = player.facing === 1 ? player.x + player.w - 4 : player.x - 44;
-    ctx.beginPath();
-    ctx.ellipse(ax + 24, player.y + 28, 28, 18, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  // Particles
-  particles.forEach(p => {
-    ctx.globalAlpha = Math.max(0, p.life / 0.5);
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size * (p.life / 0.5), 0, Math.PI * 2);
-    ctx.fill();
-  });
-  ctx.globalAlpha = 1;
-
-  // Level name bottom
-  ctx.fillStyle = 'rgba(160,180,220,0.45)';
-  ctx.font = '13px Rajdhani, sans-serif';
-  ctx.fillText(levels[currentLevel].name, 18, 586);
-}
-
-function drawPlayer() {
-  const px = player.x, py = player.y;
-
-  if (spriteSheet.complete && spriteSheet.naturalWidth > 0) {
-    let row = SPRITE.run;
-    let frameIdx = 0;
-
-    if (player.anim === 'swing') {
-      row = SPRITE.swing;
-      frameIdx = Math.min(player.frame, row.frames - 1);
-    } else if (player.anim === 'thrust') {
-      row = SPRITE.thrust;
-      frameIdx = Math.min(player.frame, row.frames - 1);
-    } else if (player.anim === 'run') {
-      frameIdx = player.frame % row.frames;
-    } else {
-      frameIdx = 0; // idle = first run frame
-    }
-
-    const sx = row.xs ? row.xs[frameIdx] : (row.startX || 0) + frameIdx * SPRITE.frameW;
-    const sy = row.y;
-    const sw = SPRITE.frameW;
-    const sh = SPRITE.frameH;
-
-    ctx.save();
-    if (player.facing === -1) {
-      ctx.translate(px + player.w, py);
-      ctx.scale(-1, 1);
-      ctx.drawImage(spriteSheet, sx, sy, sw, sh, 0, 0, player.w, player.h);
-    } else {
-      ctx.drawImage(spriteSheet, sx, sy, sw, sh, px, py, player.w, player.h);
-    }
-    ctx.restore();
-
-    // invincible blink
-    if (player.invincible > 0 && Math.floor(player.invincible * 12) % 2 === 0) {
-      ctx.globalAlpha = 0.35;
-      ctx.fillStyle = '#aaddff';
-      ctx.fillRect(px, py, player.w, player.h);
+    drawPlayer(ctx) {
+      const img = this.images.get(this.sheet);
+      const blink = this.iframes > 0 && Math.floor(this.iframes * 14) % 2 === 0;
+      ctx.globalAlpha = blink ? 0.45 : 1;
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.beginPath();
+      ctx.ellipse(this.px, this.py + 20, 16, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (img && img.complete && img.naturalWidth) {
+        const cw = img.naturalWidth / 4;
+        const ch = img.naturalHeight / 4;
+        const col = this.frame;
+        const row = this.facing;
+        const dw = 64;
+        const dh = 64;
+        ctx.drawImage(img, col * cw, row * ch, cw, ch, this.px - dw / 2, this.py - dh / 2 - 6, dw, dh);
+      } else {
+        ctx.fillStyle = this.trail;
+        ctx.beginPath();
+        ctx.arc(this.px, this.py, 16, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.globalAlpha = 1;
     }
-  } else {
-    // fallback
-    ctx.fillStyle = player.invincible > 0 ? '#88aaff' : '#2a6aff';
-    ctx.fillRect(px, py, player.w, player.h);
-    ctx.fillStyle = '#111';
-    ctx.beginPath();
-    ctx.arc(px + player.w/2, py + 11, 9, 0, Math.PI*2);
-    ctx.fill();
-    ctx.fillStyle = '#00e5ff';
-    const sx = player.facing === 1 ? px + player.w : px - 18;
-    ctx.fillRect(sx, py + 18, 20, 5);
+    drawEnemy(ctx, e) {
+      const st = ENEMY[e.kind];
+      const img = this.images.get(st.sheet);
+      const s = 52 * st.scale;
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.beginPath();
+      ctx.ellipse(e.x, e.y + s * 0.32, s * 0.28, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (e.hit > 0) ctx.globalAlpha = 0.7;
+      if (img && img.complete && img.naturalWidth) {
+        const cw = img.naturalWidth / 2;
+        const ch = img.naturalHeight / 2;
+        const f = Math.floor(e.frame) % 4;
+        ctx.drawImage(img, f % 2 * cw, Math.floor(f / 2) * ch, cw, ch, e.x - s / 2, e.y - s / 2, s, s);
+      } else {
+        ctx.fillStyle = e.kind === "boss" ? "#b06bff" : "#3dff9a";
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, st.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      const pct = Math.max(0, e.hp / e.max);
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(e.x - 18, e.y - s / 2 - 8, 36, 4);
+      ctx.fillStyle = pct > 0.45 ? "#5ddea0" : "#ff6a3d";
+      ctx.fillRect(e.x - 18, e.y - s / 2 - 8, 36 * pct, 4);
+    }
+  };
+
+  // ../tmp/gh-src/save.ts
+  var KEY = "nea-save-v1";
+  var fresh = () => ({
+    version: 1,
+    coins: 160,
+    owned: ["cyan"],
+    equipped: "cyan",
+    upgrades: { hp: 0, speed: 0, edge: 0 },
+    unlocked: 1,
+    clears: 0
+  });
+  function loadSave() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (!raw) return fresh();
+      const parsed = JSON.parse(raw);
+      if (parsed.version !== 1) return fresh();
+      return { ...fresh(), ...parsed, upgrades: { ...fresh().upgrades, ...parsed.upgrades } };
+    } catch {
+      return fresh();
+    }
   }
-}
-
-// Main loop
-function gameLoop(timestamp) {
-  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
-  lastTime = timestamp;
-
-  if (gameState === 'playing') {
-    updatePlayer(dt);
-    updateEnemies(dt);
-    updateParticles(dt);
-  } else if (gameState === 'menu') {
-    // already updating particles in draw
+  function writeSave(save2) {
+    localStorage.setItem(KEY, JSON.stringify(save2));
   }
 
-  draw();
-  requestAnimationFrame(gameLoop);
-}
-
-spriteSheet.onload = () => console.log('Sprites transparentes cargados ✓');
-floorPattern = null;
-showMenu();
-requestAnimationFrame(gameLoop);
+  // ../tmp/gh-src/main.ts
+  var app = document.getElementById("app");
+  var save = loadSave();
+  var screen = "menu";
+  var level = 1;
+  var hud = null;
+  var end = null;
+  var toast = "";
+  var arena = null;
+  var toastTimer = 0;
+  function persist() {
+    writeSave(save);
+  }
+  function setToast(msg) {
+    toast = msg;
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => {
+      toast = "";
+      if (screen === "shop") render();
+    }, 1600);
+    render();
+  }
+  function startLevel(n) {
+    level = n;
+    screen = "play";
+    render();
+    const canvas = document.getElementById("game");
+    arena = new Arena(canvas, save, level, (h) => {
+      hud = h;
+      const bar = document.getElementById("hpfill");
+      const hp = document.getElementById("hptxt");
+      const keys = document.getElementById("keys");
+      const enemies = document.getElementById("enemies");
+      const name = document.getElementById("lvname");
+      if (bar) bar.style.width = `${Math.max(0, h.hp / h.max * 100)}%`;
+      if (hp) hp.textContent = String(Math.ceil(h.hp));
+      if (keys) keys.textContent = `Llaves ${h.keys}/${h.need}`;
+      if (enemies) enemies.textContent = String(h.enemies);
+      if (name) name.textContent = `Nv ${level} \xB7 ${h.levelName}`;
+    }, (reason, coins) => {
+      end = { reason, coins };
+      save = {
+        ...save,
+        coins: save.coins + coins,
+        clears: reason === "clear" ? save.clears + 1 : save.clears,
+        unlocked: reason === "clear" ? Math.max(save.unlocked, Math.min(5, level + 1)) : save.unlocked
+      };
+      persist();
+      screen = "end";
+      arena?.stop();
+      arena = null;
+      render();
+    });
+    const fit = () => arena?.resize();
+    fit();
+    arena.start();
+    window.addEventListener("resize", fit);
+    const down = (e) => {
+      arena?.keys.add(e.code);
+      if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
+    };
+    const up = (e) => arena?.keys.delete(e.code);
+    const blur = () => arena?.keys.clear();
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    canvas._off = () => {
+      window.removeEventListener("resize", fit);
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+    };
+  }
+  function leavePlay() {
+    const canvas = document.getElementById("game");
+    canvas?._off?.();
+    arena?.stop();
+    arena = null;
+    screen = "menu";
+    render();
+  }
+  function buySkin(id) {
+    const skin = SKINS.find((s) => s.id === id);
+    if (!skin) return;
+    if (save.owned.includes(id)) {
+      save = { ...save, equipped: id };
+      persist();
+      render();
+      return;
+    }
+    if (save.coins < skin.price) {
+      setToast("No tienes bastante oro.");
+      return;
+    }
+    save = { ...save, coins: save.coins - skin.price, owned: [...save.owned, id], equipped: id };
+    persist();
+    setToast(`${skin.name} equipada.`);
+  }
+  function buyUpgrade(id) {
+    const spec = UPGRADES.find((u) => u.id === id);
+    if (!spec) return;
+    const rank = save.upgrades[id];
+    if (rank >= spec.max) return;
+    const price = spec.price + rank * 80;
+    if (save.coins < price) {
+      setToast("No tienes bastante oro.");
+      return;
+    }
+    save = { ...save, coins: save.coins - price, upgrades: { ...save.upgrades, [id]: rank + 1 } };
+    persist();
+    render();
+  }
+  function skinThumb(url) {
+    const map = globalThis.NEA_ASSETS || {};
+    const src = map[url] || url;
+    return `<div class="thumb" style="background-image:url('${src}')"></div>`;
+  }
+  function render() {
+    const skin = SKINS.find((s) => s.id === save.equipped) ?? SKINS[0];
+    if (screen === "menu") {
+      app.innerHTML = `
+      <section class="center">
+        <p class="kicker">Templo de las sombras</p>
+        <h1>Ninja<span>Escape Arena</span></h1>
+        <p class="lead">Escape room y combate cenital. Recoge llaves, abre la salida y gasta el oro en la armer\xEDa.</p>
+        <div class="equip">${skinThumb(skin.sheet)}<div><p class="muted">Equipado</p><p class="name">${skin.name}</p><p class="gold">\u25C6 ${save.coins}</p></div></div>
+        <div class="stack">
+          <button class="primary" id="play">Jugar nivel ${save.unlocked}</button>
+          <button class="ghost" id="shop">Armer\xEDa</button>
+        </div>
+        <div class="levels">${LEVELS.map((lv) => {
+        const locked = lv.id > save.unlocked;
+        return `<button class="lv" data-lv="${lv.id}" ${locked ? "disabled" : ""}>${locked ? "\u{1F512}" : lv.id}<small>${lv.name}</small></button>`;
+      }).join("")}</div>
+        <p class="hint">WASD mover \xB7 Espacio atacar \xB7 Junta las llaves y entra en la puerta</p>
+      </section>`;
+      document.getElementById("play").onclick = () => startLevel(save.unlocked);
+      document.getElementById("shop").onclick = () => {
+        screen = "shop";
+        render();
+      };
+      app.querySelectorAll(".lv").forEach((b) => {
+        b.onclick = () => startLevel(Number(b.dataset.lv));
+      });
+      return;
+    }
+    if (screen === "shop") {
+      app.innerHTML = `
+      <section class="shop">
+        <header><div><p class="kicker">Armer\xEDa</p><h2>Skins y filo</h2></div>
+        <div class="row"><span class="pill gold">\u25C6 ${save.coins}</span><button class="ghost" id="back">Volver</button></div></header>
+        ${toast ? `<p class="toast">${toast}</p>` : ""}
+        <div class="grid">${SKINS.map((s) => {
+        const owned = save.owned.includes(s.id);
+        const on = save.equipped === s.id;
+        return `<article>${skinThumb(s.sheet)}<div><h3>${s.name}</h3><p>${s.blurb}</p>
+            <button data-skin="${s.id}" ${on ? "disabled" : ""}>${on ? "Equipada" : owned ? "Equipar" : s.price + " oro"}</button></div></article>`;
+      }).join("")}</div>
+        <h3 class="sub">Mejoras permanentes</h3>
+        <div class="grid3">${UPGRADES.map((u) => {
+        const rank = save.upgrades[u.id];
+        const price = u.price + rank * 80;
+        return `<article><h3>${u.name}</h3><p>${u.blurb}</p><p class="gold">RANGO ${rank}/${u.max}</p>
+            <button data-up="${u.id}" ${rank >= u.max ? "disabled" : ""}>${rank >= u.max ? "Al m\xE1ximo" : price + " oro"}</button></article>`;
+      }).join("")}</div>
+      </section>`;
+      document.getElementById("back").onclick = () => {
+        screen = "menu";
+        render();
+      };
+      app.querySelectorAll("[data-skin]").forEach((b) => {
+        b.onclick = () => buySkin(b.dataset.skin);
+      });
+      app.querySelectorAll("[data-up]").forEach((b) => {
+        b.onclick = () => buyUpgrade(b.dataset.up);
+      });
+      return;
+    }
+    if (screen === "play") {
+      app.innerHTML = `
+      <canvas id="game"></canvas>
+      <div class="hud">
+        <div class="card"><div class="row"><span id="lvname">Nv ${level}</span><span id="hptxt"></span></div><div class="bar"><i id="hpfill"></i></div></div>
+        <div class="row">
+          <span class="pill" id="keys">Llaves</span>
+          <span class="pill gold">\u25C6 ${save.coins}</span>
+          <span class="pill">\u2694 <span id="enemies">0</span></span>
+          <button class="ghost" id="leave">Salir</button>
+        </div>
+      </div>
+      <div class="touch">
+        <div id="stick" class="stick"></div>
+        <button id="atk" class="atk">Golpe</button>
+      </div>`;
+      document.getElementById("leave").onclick = () => leavePlay();
+      const stick = document.getElementById("stick");
+      let origin = null;
+      stick.onpointerdown = (e) => {
+        stick.setPointerCapture(e.pointerId);
+        origin = { x: e.clientX, y: e.clientY };
+      };
+      stick.onpointermove = (e) => {
+        if (!origin || !arena) return;
+        const dx = e.clientX - origin.x;
+        const dy = e.clientY - origin.y;
+        const m = Math.hypot(dx, dy) || 1;
+        const c = Math.min(1, m / 48);
+        arena.stick = { x: dx / m * c, y: dy / m * c };
+      };
+      const reset = () => {
+        origin = null;
+        if (arena) arena.stick = { x: 0, y: 0 };
+      };
+      stick.onpointerup = reset;
+      stick.onpointercancel = reset;
+      const atk = document.getElementById("atk");
+      atk.onpointerdown = () => arena?.keys.add("Space");
+      atk.onpointerup = () => arena?.keys.delete("Space");
+      atk.onpointerleave = () => arena?.keys.delete("Space");
+      return;
+    }
+    if (screen === "end" && end) {
+      const win = end.reason === "clear";
+      app.innerHTML = `
+      <section class="center end">
+        <p class="kicker">${win ? "Salida abierta" : "Ca\xEDste"}</p>
+        <h2>${win ? "Nivel limpio" : "Derrota"}</h2>
+        <p class="lead">${win ? `Escapaste del nivel ${level}.` : "El templo se queda con parte del bot\xEDn."}</p>
+        <p class="gold big">\u25C6 +${end.coins} oro</p>
+        <div class="stack">
+          ${win && level < 5 && save.unlocked > level ? `<button class="primary" id="next">Siguiente templo</button>` : ""}
+          <button class="ghost" id="retry">Reintentar</button>
+          <button class="ghost" id="menu">Men\xFA</button>
+        </div>
+      </section>`;
+      document.getElementById("next")?.addEventListener("click", () => startLevel(Math.min(5, level + 1)));
+      document.getElementById("retry").onclick = () => startLevel(level);
+      document.getElementById("menu").onclick = () => {
+        screen = "menu";
+        render();
+      };
+    }
+  }
+  render();
+})();
