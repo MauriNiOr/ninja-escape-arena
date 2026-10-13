@@ -1,30 +1,14 @@
 # Ninja Escape Arena
 
-Juego 2D de Escape Room + Combate (vista top-down).
+Juego 2D cenital: escape room + combate, 5 niveles, armería con skins y mejoras.
+
+Abre `index.html` o activa **GitHub Pages** (branch `main`, carpeta `/`).
 
 ## Controles
 
-| Tecla | Acción |
-|-------|--------|
-| WASD / Flechas | Mover |
-| Espacio | Atacar |
-| E | Abrir puerta (con todas las llaves) |
+- WASD / flechas: mover
+- Espacio: atacar
+- En el móvil: stick y botón Golpe
+- Junta las llaves y entra en la puerta para salir
 
-## Cómo jugar
-
-1. Abre el juego en GitHub Pages o `index.html`.
-2. Pulsa **JUGAR** o elige un nivel (1–5).
-3. Derrota enemigos, recoge llaves y abre la puerta para escapar.
-
-## Archivos
-
-- `index.html`
-- `style.css`
-- `game.js`
-- `player_sprites.jpg`
-
-## GitHub Pages
-
-Settings → Pages → Source: branch `main` → carpeta `/ (root)`.
-
-URL típica: `https://maurinior.github.io/ninja-escape-arena/`
+El oro se guarda en este navegador.
